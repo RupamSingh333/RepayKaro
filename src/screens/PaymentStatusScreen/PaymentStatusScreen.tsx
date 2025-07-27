@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
   },
   itemContainer: {
     flexDirection: 'row',
-    marginBottom: 25, // Increased spacing between items
+    marginBottom: 1, // Increased spacing between items
     alignItems: 'stretch', // Ensures contentCard stretches to full height for line alignment
   },
   timelineVisuals: {
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 5, // Android shadow
-    marginBottom: 2, // Prevent line from overlapping card shadow
+    marginBottom: 5, // Prevent line from overlapping card shadow
     // Dynamic background, border, and shadow color will be set in renderItem
   },
   cardHeader: {
