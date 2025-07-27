@@ -1,61 +1,106 @@
 import React, { Component } from "react";
-import { Text, View, StyleSheet } from "react-native";
+import { Text, View, StyleSheet, Animated } from "react-native"; // Added Animated
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from "react-native-responsive-screen";
 
 export default class RepayWorkComp extends Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      // Added animated value for a subtle scale effect on the card
+      cardScale: new Animated.Value(1),
+    };
+  }
+
+  componentDidMount() {
+    // Start a subtle pulse animation for the card
+    this.animateCard();
+  }
+
+  animateCard = () => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(this.state.cardScale, {
+          toValue: 1.01, // Slightly increase size
+          duration: 1500, // Slower animation
+          useNativeDriver: true,
+          easing: Animated.Easing.inOut(Animated.Easing.ease),
+        }),
+        Animated.timing(this.state.cardScale, {
+          toValue: 1, // Return to original size
+          duration: 1500,
+          useNativeDriver: true,
+          easing: Animated.Easing.inOut(Animated.Easing.ease),
+        }),
+      ])
+    ).start();
+  };
+
   render() {
     const { item } = this.props;
+    const { cardScale } = this.state;
 
     return (
-      <View style={styles.card}>
+      <Animated.View style={[styles.card, { transform: [{ scale: cardScale }] }]}>
         <View style={styles.circle}>
           <Text style={styles.circleText}>{item.id}</Text>
         </View>
         <Text style={styles.title}>{item.title}</Text>
         <Text style={styles.description}>{item.description}</Text>
-      </View>
+      </Animated.View>
     );
   }
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: wp("5%"),
-    marginBottom: hp("2%"),
+    backgroundColor: "#FFFFFF", // Brighter white background
+    borderRadius: 20, // More rounded corners for a modern feel
+    padding: wp("6%"), // Increased padding for more breathing room
+    marginHorizontal: wp("3%"), // Added horizontal margin for spacing when used in a list
+    marginBottom: hp("2.5%"), // Slightly increased bottom margin
     alignItems: "center",
+    // Enhanced shadow for a lifted, more prominent look
     shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 6,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 6 }, // More vertical offset for shadow
+    shadowOpacity: 0.1, // Softer shadow
+    shadowRadius: 15, // Wider blur radius for shadow
+    elevation: 8, // Android shadow
+    overflow: 'hidden', // Ensure shadow and border radius play nicely
   },
   circle: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "#7B5CFA",
+    width: wp("16%"), // Responsive size for the circle
+    height: wp("16%"),
+    borderRadius: wp("8%"), // Half of width/height for a perfect circle
+    backgroundColor: "#7B5CFA", // Your distinctive purple color
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: hp("1.5%"),
+    marginBottom: hp("2%"), // Increased margin below the circle
+    // Add a subtle inner shadow or border for depth
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.4)', // Lighter border
+    shadowColor: "#000", // Shadow for the circle itself
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
   },
   circleText: {
     color: "#fff",
-    fontSize: 18,
+    fontSize: wp("6%"), // Responsive font size for the ID
     fontWeight: "bold",
   },
   title: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
+    fontSize: wp("4.8%"), // Responsive and slightly larger font size for title
+    fontWeight: "700", // Bolder font weight
+    color: "#333333", // Darker text for better contrast
     textAlign: "center",
-    marginBottom: 6,
+    marginBottom: hp("1%"), // Adjusted margin below title
+    lineHeight: wp("5.5%"), // Ensure consistent line height
   },
   description: {
-    fontSize: 14,
-    color: "#666",
+    fontSize: wp("3.8%"), // Responsive font size for description
+    color: "#666666", // Softer grey for description
     textAlign: "center",
-    lineHeight: 20,
+    lineHeight: wp("5.5%"), // Consistent line height for readability
   },
 });

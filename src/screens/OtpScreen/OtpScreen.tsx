@@ -1,12 +1,17 @@
 import React, { Component } from 'react';
 import {
-  Text,
   View,
+  Text,
+  TextInput, // Although OTPInputView replaces direct TextInput, good to keep if needed
   TouchableOpacity,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Keyboard,
+  TouchableWithoutFeedback,
+  Appearance, // Import Appearance
+  StatusBar, // For status bar color
 } from 'react-native';
 import OTPInputView from '@twotalltotems/react-native-otp-input';
 import { apiPost } from '../../api/Api';
@@ -19,16 +24,26 @@ export default class OTPScreen extends Component {
       otp: '',
       resendTimer: 48,
       loading: false,
+      theme: Appearance.getColorScheme(), // Initialize theme from system
     };
     this.timer = null;
+    this.themeListener = null; // To store the theme listener
   }
 
   componentDidMount() {
     this.startResendTimer();
+    // Add event listener for theme changes
+    this.themeListener = Appearance.addChangeListener(({ colorScheme }) => {
+      this.setState({ theme: colorScheme });
+    });
   }
 
   componentWillUnmount() {
     if (this.timer) clearInterval(this.timer);
+    // Remove the event listener when the component unmounts
+    if (this.themeListener) {
+      this.themeListener.remove();
+    }
   }
 
   startResendTimer = () => {
@@ -53,7 +68,7 @@ export default class OTPScreen extends Component {
     const mobile = this.props.route?.params?.mobile || '';
 
     if (otp.length !== 4) {
-      this.props.toastRef.current.show('Please enter a valid 4-digit OTP', 2000);
+      this.props.toastRef?.current?.show('Please enter a valid 4-digit OTP', 2000);
       return;
     }
 
@@ -67,137 +82,205 @@ export default class OTPScreen extends Component {
 
       if (json.success && json.jwtToken) {
         await AsyncStorage.setItem('liveCustomerToken', json.jwtToken);
-        this.props.toastRef.current.show('OTP Verified! Redirecting...', 1500);
+        await AsyncStorage.setItem('customerName', json.name || '');
+        await AsyncStorage.setItem('customerPhone', mobile);
+
+        this.props.toastRef?.current?.show('OTP Verified! Redirecting...', 1500);
         this.props.onLoginSuccess();
       } else {
-        this.props.toastRef.current.show(json.message || 'Invalid OTP!', 2000);
+        this.props.toastRef?.current?.show(json.message || 'Invalid OTP!', 2000);
       }
     } catch (error) {
-      this.props.toastRef.current.show('Network error!', 2000);
+      this.props.toastRef?.current?.show('Network error!', 2000);
     } finally {
       this.setState({ loading: false });
     }
   };
+
+  handleResendOTP = async () => {
+    const mobile = this.props.route?.params?.mobile || '';
+    if (!mobile) return; // Should not happen if coming from LoginScreen
+
+    this.setState({ loading: true });
+    try {
+      const json = await apiPost('clientAuth/login', { phone: mobile });
+      if (json.success) {
+        this.props.toastRef.current.show('OTP re-sent successfully!', 2000);
+        this.startResendTimer(); // Restart the timer
+      } else {
+        this.props.toastRef.current.show(json.message || 'Failed to re-send OTP.', 2000);
+      }
+    } catch (error) {
+      console.error("Resend OTP error:", error);
+      this.props.toastRef.current.show('Network error during re-send!', 2000);
+    } finally {
+      this.setState({ loading: false });
+    }
+  };
+
 
   handleChangeNumber = () => {
     this.props.navigation.navigate('Login');
   };
 
   render() {
-    const { resendTimer, otp, loading } = this.state;
+    const { resendTimer, loading, theme } = this.state;
     const mobile = this.props.route?.params?.mobile || 'XXXXXXXXXX';
+    const isDark = theme === 'dark';
+
+    // Define color variables based on the theme
+    const bgColor = isDark ? '#1F2937' : '#F4F7FC'; // Main background
+    const textColor = isDark ? '#E5E7EB' : '#1F2937'; // General text color
+    const subColor = isDark ? '#9CA3AF' : '#4B5563'; // Subheading, info text
+    const primaryAccentColor = '#7B5CFA'; // Button, active OTP border, resend link
+    const otpInputBg = isDark ? '#374151' : '#FFFFFF';
+    const otpInputBorder = isDark ? '#4B5563' : '#ddd';
+    const otpInputActiveBorder = primaryAccentColor; // Active border color
+    const otpInputTextColor = isDark ? '#E5E7EB' : '#1F2937';
+    const disabledButtonBg = isDark ? '#4B5563' : '#C0C0C0';
+    const resendTimerColor = isDark ? '#6B7280' : '#999'; // Color for timer text
 
     return (
-      <KeyboardAvoidingView
-        style={{ flex: 1, backgroundColor: '#F9F9F9' }}
-        behavior={Platform.OS === 'ios' ? 'padding' : null}
-      >
-        <View style={styles.container}>
-          <Text style={styles.heading}>OTP Verification</Text>
-          <Text style={styles.subheading}>Enter the OTP sent to {mobile}</Text>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <KeyboardAvoidingView
+          style={[styles.safeArea, { backgroundColor: bgColor }]}
+          behavior={Platform.OS === 'ios' ? 'padding' : null}
+        >
+          <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={bgColor} />
+          <View style={styles.container}>
+            <Text style={[styles.heading, { color: textColor }]}>OTP Verification</Text>
+            <Text style={[styles.subheading, { color: subColor }]}>
+              Enter the 4-digit code sent to <Text style={{ fontWeight: 'bold' }}>{mobile}</Text>
+            </Text>
 
-          <OTPInputView
-            style={{ width: '80%', height: 60, alignSelf: 'center', marginTop: 30 }}
-            pinCount={4}
-            autoFocusOnLoad
-            code={otp}
-            codeInputFieldStyle={styles.inputBox}
-            codeInputHighlightStyle={styles.inputBoxActive}
-            onCodeChanged={(code) => this.setState({ otp: code })}
-          />
+            <OTPInputView
+              style={styles.otpInputView}
+              pinCount={4}
+              autoFocusOnLoad
+              codeInputFieldStyle={[
+                styles.inputBox,
+                {
+                  borderColor: otpInputBorder,
+                  backgroundColor: otpInputBg,
+                  color: otpInputTextColor,
+                },
+              ]}
+              codeInputHighlightStyle={{ borderColor: otpInputActiveBorder }}
+              onCodeFilled={(code) => this.setState({ otp: code })}
+            />
 
-          {resendTimer > 0 ? (
-            <Text style={styles.resendText}>Resend OTP in {resendTimer}s</Text>
-          ) : (
-            <TouchableOpacity onPress={this.startResendTimer}>
-              <Text style={styles.resendLink}>Resend OTP</Text>
-            </TouchableOpacity>
-          )}
-
-          <TouchableOpacity onPress={this.handleChangeNumber}>
-            <Text style={styles.changeNumber}>Change Mobile Number</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.button, loading && { opacity: 0.6 }]}
-            onPress={this.handleVerifyOTP}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
+            {resendTimer > 0 ? (
+              <Text style={[styles.resendText, { color: resendTimerColor }]}>
+                Resend OTP in {resendTimer}s
+              </Text>
             ) : (
-              <Text style={styles.buttonText}>Verify OTP</Text>
+              <TouchableOpacity onPress={this.handleResendOTP}>
+                <Text style={[styles.resendLink, { color: primaryAccentColor }]}>
+                  Resend OTP
+                </Text>
+              </TouchableOpacity>
             )}
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
+
+            <TouchableOpacity onPress={this.handleChangeNumber}>
+              <Text style={[styles.changeNumber, { color: primaryAccentColor }]}>
+                Change Mobile Number
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.button,
+                { backgroundColor: primaryAccentColor },
+                loading && { opacity: 0.6, backgroundColor: disabledButtonBg }, // Apply disabled styles
+              ]}
+              onPress={this.handleVerifyOTP}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>Verify OTP</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </TouchableWithoutFeedback>
     );
   }
 }
 
+// --- Stylesheet ---
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     padding: 24,
     justifyContent: 'center',
-    backgroundColor: '#F9F9F9',
+    alignItems: 'center', // Center content horizontally
   },
   heading: {
-    fontSize: 26,
+    fontSize: 28, // Slightly larger
     fontWeight: 'bold',
-    color: '#4B0082',
     textAlign: 'center',
     marginBottom: 10,
   },
   subheading: {
-    fontSize: 14,
-    color: '#555',
+    fontSize: 16, // Slightly larger
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 30, // More spacing
+    lineHeight: 24, // Better readability
+  },
+  otpInputView: {
+    width: '85%', // Wider
+    height: 70, // Taller
+    alignSelf: 'center',
+    marginTop: 20, // Reduced top margin
+    marginBottom: 20, // Added bottom margin
   },
   inputBox: {
-    width: 55,
-    height: 55,
+    width: 60, // Wider
+    height: 60, // Taller
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 10,
-    fontSize: 20,
-    color: '#111',
-    backgroundColor: '#fff',
-  },
-  inputBoxActive: {
-    borderColor: '#8b5cf6',
+    borderRadius: 12, // More rounded corners
+    fontSize: 22, // Larger font
+    fontWeight: '600', // Bolder font
   },
   resendText: {
-    marginTop: 20,
+    marginTop: 15, // Adjusted margin
     fontSize: 14,
     textAlign: 'center',
-    color: '#999',
   },
   resendLink: {
-    marginTop: 20,
+    marginTop: 15,
     fontSize: 14,
     textAlign: 'center',
-    color: '#8b5cf6',
     fontWeight: '600',
+    textDecorationLine: 'underline', // Underline for links
   },
   changeNumber: {
-    marginTop: 10,
+    marginTop: 15, // Adjusted margin
     fontSize: 14,
     textAlign: 'center',
-    color: '#8b5cf6',
     fontWeight: '600',
+    textDecorationLine: 'underline', // Underline for links
   },
   button: {
-    marginTop: 30,
-    backgroundColor: '#8b5cf6',
-    paddingVertical: 16,
-    borderRadius: 10,
+    marginTop: 40, // More spacing to button
+    paddingVertical: 18, // Taller button
+    borderRadius: 12, // More rounded
     alignItems: 'center',
+    width: '100%', // Full width
+    shadowColor: '#000', // Add shadow
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 6,
   },
   buttonText: {
     color: '#fff',
     fontWeight: '700',
-    fontSize: 16,
+    fontSize: 18, // Larger text
   },
 });

@@ -5,153 +5,107 @@ import {
   TouchableOpacity,
   StyleSheet,
   Image,
-  Modal,
-  ActivityIndicator,
-  Animated,
-  Easing,
+  Platform,
+  Appearance,
+  StatusBar,
 } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { heightPercentageToDP as hp, widthPercentageToDP as wp } from "react-native-responsive-screen";
-import { CommonActions } from "@react-navigation/native";
+import {
+  heightPercentageToDP as hp,
+  widthPercentageToDP as wp,
+} from "react-native-responsive-screen";
 
+// Theme Colors
+const getThemeColors = () => {
+  const colorScheme = Appearance.getColorScheme();
+  const isDark = colorScheme === "dark";
+
+  return {
+    isDark,
+    background: isDark ? "#1F2937" : "rgba(255,255,255,0.95)",
+    text: isDark ? "#F9FAFB" : "#1F2937",
+    icon: isDark ? "#E5E7EB" : "#374151",
+    accent: isDark ? "#9D8CFF" : "#7B5CFA",
+    shadow: "#000",
+    shadowOpacity: isDark ? 0.3 : 0.08,
+    borderColor: isDark ? "#2C2C2E" : "#DDDDDD",
+  };
+};
 
 export default class HeaderComponent extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      showLogoutModal: false,
-      loading: false,
-      logoScale: new Animated.Value(1),
+      theme: Appearance.getColorScheme(),
     };
+    this.themeListener = null;
   }
 
   componentDidMount() {
-    this.animateLogo();
+    this.themeListener = Appearance.addChangeListener(({ colorScheme }) => {
+      this.setState({ theme: colorScheme });
+    });
   }
 
-  animateLogo = () => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(this.state.logoScale, {
-          toValue: 1.05,
-          duration: 1000,
-          useNativeDriver: true,
-          easing: Easing.inOut(Easing.ease),
-        }),
-        Animated.timing(this.state.logoScale, {
-          toValue: 1,
-          duration: 1000,
-          useNativeDriver: true,
-          easing: Easing.inOut(Easing.ease),
-        }),
-      ])
-    ).start();
-  };
-
-  openLogoutModal = () => this.setState({ showLogoutModal: true });
-  closeLogoutModal = () => this.setState({ showLogoutModal: false });
-
-  handleLogout = async () => {
-    this.setState({ loading: true, showLogoutModal: false });
-
-    try {
-      await AsyncStorage.clear();
-      this.props.setIsLoggedIn(false);
-
-      this.props.rootNavigation.dispatch(
-        CommonActions.reset({
-          index: 0,
-          routes: [{ name: "Home" }],
-        })
-      );
-
-      if (this.props.toastRef?.current) {
-        this.props.toastRef.current.show("Logged out successfully", 2000);
-      }
-    } catch (error) {
-      console.log("Logout error:", error);
-    } finally {
-      this.setState({ loading: false });
+  componentWillUnmount() {
+    if (this.themeListener) {
+      this.themeListener.remove();
     }
-  };
+  }
 
   render() {
-    const { title, showBack, onBackPress, showLogo, showLogout, navigation } = this.props;
-    const { showLogoutModal, loading, logoScale } = this.state;
+    const { title, showBack, onBackPress } = this.props;
+    const { theme } = this.state;
+    const isHomePage = title === "RepayKaro";
+
+    const Colors = getThemeColors();
 
     return (
-      <View style={styles.headerContainer}>
-        {/* Left: Back Button */}
-        <View style={styles.sideContainer}>
+      <View
+        style={[
+          styles.headerContainer,
+          {
+            backgroundColor: Colors.background,
+            shadowColor: Colors.shadow,
+            shadowOpacity: Colors.shadowOpacity,
+            borderBottomColor: Colors.borderColor,
+          },
+        ]}
+      >
+        <StatusBar
+          translucent
+          backgroundColor="transparent"
+          barStyle={Colors.isDark ? "light-content" : "dark-content"}
+        />
+
+        {/* Back Button */}
+        <View style={styles.leftContainer}>
           {showBack && (
-            <TouchableOpacity onPress={onBackPress}>
-              <Image
-                source={require("../assets/icons/back.png")}
-                style={styles.icon}
-              />
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Center: Logo */}
-        <View style={styles.logoContainer}>
-          {showLogo && (
-            <TouchableOpacity onPress={() => navigation.navigate("Home2")}>
-              <Animated.Image
-                source={require("../assets/appIcon/rpkk.png")}
-                style={[
-                  styles.logo,
-                  { transform: [{ scale: logoScale }] },
-                ]}
-              />
-            </TouchableOpacity>
-          )}
-          {title && <Text style={styles.titleText}>{title}</Text>}
-        </View>
-
-        {/* Right: Logout */}
-        <View style={styles.sideContainer}>
-          {showLogout && (
-            <TouchableOpacity onPress={this.openLogoutModal}>
-              <Image
-                source={require("../assets/icons/logout.png")}
-                style={[styles.icon, { tintColor: "#FF4D4D" }]}
-              />
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* 🔐 Logout Modal */}
-        <Modal
-          transparent
-          animationType="fade"
-          visible={showLogoutModal}
-          onRequestClose={this.closeLogoutModal}
-        >
-          <View style={styles.modalBackdrop}>
-            <View style={styles.modalBox}>
-              <Text style={styles.modalTitle}>Logout</Text>
-              <Text style={styles.modalMessage}>Are you sure you want to logout?</Text>
-
-              <View style={styles.modalButtons}>
-                <TouchableOpacity style={styles.cancelButton} onPress={this.closeLogoutModal}>
-                  <Text style={styles.cancelButtonText}>Cancel</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.logoutConfirmButton} onPress={this.handleLogout}>
-                  <Text style={styles.logoutConfirmText}>Yes, Logout</Text>
-                </TouchableOpacity>
+            <TouchableOpacity onPress={onBackPress} style={styles.backButton}>
+              <View style={styles.backCircle}>
+                <Image
+                  source={require("../assets/icons/back.png")}
+                  style={[styles.icon, { tintColor: Colors.icon }]}
+                />
               </View>
-            </View>
-          </View>
-        </Modal>
+            </TouchableOpacity>
+          )}
+        </View>
 
-        {/* ⏳ Loading Overlay */}
-        {loading && (
-          <View style={styles.loaderOverlay}>
-            <ActivityIndicator size="large" color="#7B5CFA" />
-          </View>
-        )}
+        {/* Title */}
+        <View style={styles.centerContainer}>
+          <Text
+            style={[
+              styles.titleText,
+              { color: isHomePage ? Colors.accent : Colors.text },
+              isHomePage && styles.repayTitle,
+            ]}
+          >
+            {title}
+          </Text>
+        </View>
+
+        {/* Right Placeholder */}
+        <View style={styles.rightContainer} />
       </View>
     );
   }
@@ -160,112 +114,58 @@ export default class HeaderComponent extends Component {
 const styles = StyleSheet.create({
   headerContainer: {
     width: "100%",
-    height: 65,
-    backgroundColor: "#fff",
-    paddingHorizontal: 16,
+    height: hp("9.5%"),
+    paddingTop: Platform.OS === "ios" ? hp("5.5%") : hp("3.8%"),
+    paddingHorizontal: wp("5%"),
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    elevation: 6,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 10,
+    elevation: 10,
+    borderBottomWidth: 0.5,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    zIndex: 10,
   },
-  sideContainer: {
-    width: wp("20%"),
+  leftContainer: {
+    width: wp("15%"),
+    alignItems: "flex-start",
     justifyContent: "center",
-    alignItems: "center",
   },
-  logoContainer: {
+  centerContainer: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    flexDirection: "column",
   },
-  logo: {
-    width: wp("30%"),
-    height: hp("8%"),
-    resizeMode: "contain",
-    marginBottom: 2,
+  rightContainer: {
+    width: wp("15%"),
+    alignItems: "flex-end",
+    justifyContent: "center",
   },
-  titleText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#333",
-    marginTop: 2,
+  backButton: {
+    padding: wp("1.5%"),
+  },
+  backCircle: {
+    backgroundColor: "rgba(120,120,120,0.1)",
+    borderRadius: wp("7%"),
+    padding: wp("2.5%"),
+    justifyContent: "center",
+    alignItems: "center",
   },
   icon: {
-    width: 26,
-    height: 26,
+    width: wp("5%"),
+    height: wp("5%"),
     resizeMode: "contain",
   },
-  // Modal
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "center",
-    alignItems: "center",
+  titleText: {
+    fontSize: wp("5.2%"),
+    fontWeight: "700",
+    letterSpacing: 0.4,
   },
-  modalBox: {
-    width: "80%",
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 24,
-    alignItems: "center",
-    elevation: 6,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 8,
-    color: "#222",
-  },
-  modalMessage: {
-    fontSize: 15,
-    textAlign: "center",
-    marginBottom: 20,
-    color: "#666",
-  },
-  modalButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    width: "100%",
-  },
-  cancelButton: {
-    flex: 1,
-    backgroundColor: "#E0E0E0",
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: "center",
-    marginRight: 10,
-  },
-  cancelButtonText: {
-    color: "#333",
-    fontWeight: "bold",
-  },
-  logoutConfirmButton: {
-    flex: 1,
-    backgroundColor: "#FF4D4D",
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  logoutConfirmText: {
-    color: "#fff",
-    fontWeight: "bold",
-  },
-  loaderOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.2)",
-    zIndex: 1000,
+  repayTitle: {
+    fontWeight: "800",
+    letterSpacing: 1.2,
+    fontSize: wp("6%"),
   },
 });

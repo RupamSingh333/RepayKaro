@@ -9,10 +9,13 @@ import {
   ActivityIndicator,
   Modal,
   Dimensions,
+  Appearance,
 } from "react-native";
 import { launchImageLibrary } from "react-native-image-picker";
 import HeaderComponent from "../../components/HeaderComponent";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { apiGet, apiPostMultipart, apiDelete } from '../../api/Api';
+
+const { width } = Dimensions.get("window");
 
 export default class UploadPaymentScreenshot extends Component {
   constructor(props) {
@@ -24,26 +27,27 @@ export default class UploadPaymentScreenshot extends Component {
       showDeleteModal: false,
       deleteId: null,
       client: null,
-      fullScreenImage: null, // for full screen image preview
+      fullScreenImage: null,
+      theme: Appearance.getColorScheme(),
     };
+    this.themeListener = null;
   }
 
   componentDidMount() {
     this.fetchClientData();
     this.fetchUploadedScreenshots();
+    this.themeListener = Appearance.addChangeListener(({ colorScheme }) => {
+      this.setState({ theme: colorScheme });
+    });
+  }
+
+  componentWillUnmount() {
+    if (this.themeListener) this.themeListener.remove();
   }
 
   fetchClientData = async () => {
-    const token = await AsyncStorage.getItem("liveCustomerToken");
-    if (!token) return;
-
     try {
-      const res = await fetch("https://api.repaykaro.com/api/v1/clients/get-client", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const result = await res.json();
+      const result = await apiGet('clients/get-client');
       if (result?.success && result?.client) {
         this.setState({ client: result.client });
       }
@@ -73,12 +77,6 @@ export default class UploadPaymentScreenshot extends Component {
       return;
     }
 
-    const token = await AsyncStorage.getItem("liveCustomerToken");
-    if (!token) {
-      this.props.toastRef.current?.show("Auth token not found", 2500);
-      return;
-    }
-
     this.setState({ loading: true });
 
     const formData = new FormData();
@@ -89,16 +87,7 @@ export default class UploadPaymentScreenshot extends Component {
     });
 
     try {
-      const res = await fetch("https://api.repaykaro.com/api/v1/clients/upload-payment-screenshot", {
-        method: "POST",
-        headers: {
-          "Content-Type": "multipart/form-data",
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
-
-      const result = await res.json();
+      const result = await apiPostMultipart('clients/upload-payment-screenshot', formData);
       if (result.success) {
         this.props.toastRef.current?.show("Uploaded successfully!", 2000);
         this.setState({ selectedImage: null });
@@ -115,16 +104,8 @@ export default class UploadPaymentScreenshot extends Component {
   };
 
   fetchUploadedScreenshots = async () => {
-    const token = await AsyncStorage.getItem("liveCustomerToken");
-    if (!token) return;
-
     try {
-      const res = await fetch("https://api.repaykaro.com/api/v1/clients/get-screenshot", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const result = await res.json();
+      const result = await apiGet('clients/get-screenshot');
       this.setState({ screenshots: result?.screen_shot || [] });
     } catch (error) {
       console.log("Fetch Screenshot Error:", error);
@@ -140,22 +121,12 @@ export default class UploadPaymentScreenshot extends Component {
 
   confirmDelete = async () => {
     const { deleteId } = this.state;
-    const token = await AsyncStorage.getItem("liveCustomerToken");
-    if (!token || !deleteId) return;
+    if (!deleteId) return;
 
     this.setState({ showDeleteModal: false, loading: true });
 
     try {
-      const res = await fetch(
-        `https://api.repaykaro.com/api/v1/clients/delete-screenshot/${deleteId}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      const result = await res.json();
+      const result = await apiDelete(`clients/delete-screenshot/${deleteId}`);
       if (result.success) {
         this.props.toastRef.current?.show("Screenshot deleted", 2000);
         this.fetchUploadedScreenshots();
@@ -176,22 +147,33 @@ export default class UploadPaymentScreenshot extends Component {
   };
 
   render() {
-    const { selectedImage, screenshots, loading, showDeleteModal, client, fullScreenImage } = this.state;
-
+    const { selectedImage, screenshots, loading, showDeleteModal, client, fullScreenImage, theme } = this.state;
     const isPaid = client?.isPaid;
+    const isDark = theme === 'dark';
+
+    // Define color variables based on the theme
+    const textColor = isDark ? '#E5E7EB' : '#1d2939'; // For main text
+    const subColor = isDark ? '#9CA3AF' : '#4B5563'; // For secondary text/info
+    const bgColor = isDark ? '#1d2939' : '#F4F7FC'; // For screen background
+    const cardBgColor = isDark ? '#2D3748' : '#FFFFFF'; // For main card/box backgrounds
+    const borderColor = isDark ? '#4B5563' : '#C8C8C8'; // For borders
+    const placeholderColor = isDark ? '#9CA3AF' : '#7B5CFA'; // For "Select or Upload" text
+    const disabledBgColor = isDark ? '#4B5563' : '#E0E0E0'; // For disabled button backgrounds
+    const disabledTextColor = isDark ? '#9CA3AF' : '#555'; // For disabled button text
 
     return (
-      <View style={{ flex: 1, backgroundColor: "#F9F9F9" }}>
+      <View style={[styles.mainContainer, { backgroundColor: bgColor }]}>
         <HeaderComponent
           title="Upload Screenshot"
           showBack={true}
           onBackPress={() => this.props.navigation.goBack()}
+          isDark={isDark} // Pass isDark to HeaderComponent
         />
 
         <ScrollView contentContainerStyle={styles.container}>
-          <View style={styles.uploadContainer}>
+          <View style={[styles.uploadContainer, { backgroundColor: cardBgColor, shadowColor: isDark ? '#000' : '#000' }]}>
             <TouchableOpacity
-              style={styles.dropBox}
+              style={[styles.dropBox, { borderColor: borderColor, backgroundColor: isDark ? '#374151' : '#FAFAFA' }]}
               onPress={this.pickImage}
               disabled={isPaid}
             >
@@ -199,35 +181,35 @@ export default class UploadPaymentScreenshot extends Component {
                 <Image source={{ uri: selectedImage }} style={styles.previewImage} />
               ) : (
                 <>
-                  <Text style={[styles.selectText, isPaid && { opacity: 0.4 }]}>📷 Select or Upload</Text>
-                  <Text style={[styles.orText, isPaid && { opacity: 0.4 }]}>From Gallery</Text>
+                  <Text style={[styles.selectText, { color: placeholderColor }, isPaid && { opacity: 0.4 }]}>📷 Select or Upload</Text>
+                  <Text style={[styles.orText, { color: subColor }, isPaid && { opacity: 0.4 }]}>From Gallery</Text>
                 </>
               )}
             </TouchableOpacity>
 
             <View style={styles.buttonRow}>
               <TouchableOpacity
-                style={[styles.cancelButton, isPaid && { backgroundColor: "#E0E0E0" }]}
+                style={[styles.cancelButton, { backgroundColor: isPaid ? disabledBgColor : (isDark ? '#6B7280' : '#F0F0F0') }]}
                 onPress={() => this.setState({ selectedImage: null })}
                 disabled={isPaid}
               >
-                <Text style={styles.cancelText}>Cancel</Text>
+                <Text style={[styles.cancelText, { color: isPaid ? disabledTextColor : (isDark ? '#E5E7EB' : '#555') }]}>Cancel</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.uploadButton, isPaid && { backgroundColor: "#C0C0C0" }]}
+                style={[styles.uploadButton, { backgroundColor: isPaid ? disabledBgColor : '#7B5CFA' }]}
                 onPress={this.uploadScreenshot}
                 disabled={isPaid}
               >
-                <Text style={styles.uploadText}>Upload</Text>
+                <Text style={[styles.uploadText, { color: isPaid ? disabledTextColor : '#fff' }]}>Upload</Text>
               </TouchableOpacity>
             </View>
           </View>
 
           <View style={styles.uploadedContainer}>
-            <Text style={styles.uploadedTitle}>Uploaded Screenshots</Text>
+            <Text style={[styles.uploadedTitle, { color: textColor }]}>Uploaded Screenshots</Text>
             {screenshots.length === 0 ? (
-              <Text style={styles.noScreenshots}>No screenshots yet</Text>
+              <Text style={[styles.noScreenshots, { color: subColor }]}>No screenshots yet</Text>
             ) : (
               <View style={styles.gridContainer}>
                 {screenshots.map((item) => (
@@ -270,17 +252,18 @@ export default class UploadPaymentScreenshot extends Component {
           </View>
         </Modal>
 
-
-
         {/* Delete Confirmation Modal */}
         <Modal transparent visible={showDeleteModal} animationType="fade">
           <View style={styles.modalBackdrop}>
-            <View style={styles.modalBox}>
-              <Text style={styles.modalTitle}>Delete Screenshot</Text>
-              <Text style={styles.modalMessage}>Are you sure you want to delete this?</Text>
+            <View style={[styles.modalBox, { backgroundColor: cardBgColor }]}>
+              <Text style={[styles.modalTitle, { color: textColor }]}>Delete Screenshot</Text>
+              <Text style={[styles.modalMessage, { color: subColor }]}>Are you sure you want to delete this?</Text>
               <View style={styles.modalButtons}>
-                <TouchableOpacity style={styles.modalCancel} onPress={this.closeDeleteModal}>
-                  <Text style={styles.modalCancelText}>Cancel</Text>
+                <TouchableOpacity
+                  style={[styles.modalCancel, { backgroundColor: isDark ? '#6B7280' : '#ccc' }]}
+                  onPress={this.closeDeleteModal}
+                >
+                  <Text style={[styles.modalCancelText, { color: isDark ? '#E5E7EB' : '#333' }]}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.modalDelete} onPress={this.confirmDelete}>
                   <Text style={styles.modalDeleteText}>Yes, Delete</Text>
@@ -292,7 +275,7 @@ export default class UploadPaymentScreenshot extends Component {
 
         {loading && (
           <View style={styles.loaderOverlay}>
-            <ActivityIndicator size="large" color="#7B5CFA" />
+            <ActivityIndicator size="large" color={textColor} />
           </View>
         )}
       </View>
@@ -300,14 +283,16 @@ export default class UploadPaymentScreenshot extends Component {
   }
 }
 
-
 const styles = StyleSheet.create({
+  mainContainer: {
+    flex: 1,
+  },
   container: {
     padding: 20,
   },
   fullscreenBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.95)",
+    backgroundColor: "rgba(0,0,0,0.95)", // Always dark for full screen image
     justifyContent: "center",
     alignItems: "center",
     position: "relative",
@@ -334,37 +319,29 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     lineHeight: 30,
   },
-
-
   uploadContainer: {
-    backgroundColor: "#fff",
     borderRadius: 12,
     padding: 20,
     elevation: 4,
-    shadowColor: "#000",
     shadowOpacity: 0.05,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 4,
   },
   dropBox: {
     borderWidth: 2,
-    borderColor: "#C8C8C8",
     borderStyle: "dashed",
     borderRadius: 10,
     height: 150,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 15,
-    backgroundColor: "#FAFAFA",
   },
   selectText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#7B5CFA",
   },
   orText: {
     fontSize: 13,
-    color: "#888",
   },
   previewImage: {
     width: "100%",
@@ -378,19 +355,16 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     flex: 1,
-    backgroundColor: "#F0F0F0",
     padding: 12,
     borderRadius: 10,
     alignItems: "center",
     marginRight: 10,
   },
   cancelText: {
-    color: "#555",
     fontWeight: "bold",
   },
   uploadButton: {
     flex: 1,
-    backgroundColor: "#7B5CFA",
     padding: 12,
     borderRadius: 10,
     alignItems: "center",
@@ -406,10 +380,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
     marginBottom: 10,
-    color: "#333",
   },
   noScreenshots: {
-    color: "#888",
     textAlign: "center",
     marginTop: 10,
   },
@@ -461,7 +433,6 @@ const styles = StyleSheet.create({
   },
   modalBox: {
     width: "80%",
-    backgroundColor: "#fff",
     borderRadius: 10,
     padding: 20,
   },
@@ -471,7 +442,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   modalMessage: {
-    color: "#666",
     textAlign: "center",
     marginBottom: 20,
   },
@@ -481,7 +451,6 @@ const styles = StyleSheet.create({
   },
   modalCancel: {
     flex: 1,
-    backgroundColor: "#ccc",
     padding: 12,
     borderRadius: 6,
     marginRight: 8,
@@ -495,7 +464,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalCancelText: {
-    color: "#333",
     fontWeight: "bold",
   },
   modalDeleteText: {
@@ -503,4 +471,3 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
 });
-

@@ -70,28 +70,28 @@ export default class HomeScreen2 extends Component {
       ])
     ).start();
   }
-renderItem=({item})=>{
-return(
-  <RepayWorkComp item={item}/>
-)
-}
-handleNavigate=()=>{
-  this.props.navigation.navigate('BottomTab')
-}
+  renderItem = ({ item }) => {
+    return (
+      <RepayWorkComp item={item} />
+    )
+  }
+  handleNavigate = () => {
+    this.props.navigation.navigate('BottomTab')
+  }
   render() {
     return (
       <View style={{ flex: 1 }}>
         {/* Fixed Header */}
         <View style={styles.headerFixed}>
-            <Image source={require('../../assets/appIcon/rpkk.png')} style={styles.logoImage}
-                resizeMode="contain"/>
+          <Image source={require('../../assets/appIcon/rpkk.png')} style={styles.logoImage}
+            resizeMode="contain" />
           <View style={styles.rightContainer}>
             <TouchableOpacity
-  style={styles.phoneButton}
-  onPress={() => Linking.openURL('tel:+9181789531431')}
->
-  <Text style={styles.phoneButtonText}>+91 81789531431</Text>
-</TouchableOpacity>
+              style={styles.phoneButton}
+              onPress={() => Linking.openURL('tel:+9181789531431')}
+            >
+              <Text style={styles.phoneButtonText}>+91 81789531431</Text>
+            </TouchableOpacity>
 
           </View>
         </View>
@@ -196,60 +196,60 @@ handleNavigate=()=>{
             </View>
           </View>
           {/* ESCALATIONS & REPAYMENT OPTIONS SECTION */}
-<View style={styles.escalationContainer}>
-  <View style={styles.escalationImageWrapper}>
-  <Animated.View
-    style={[
+          <View style={styles.escalationContainer}>
+            <View style={styles.escalationImageWrapper}>
+              <Animated.View
+                style={[
                   styles.platformImage,
-      { transform: [{ scale: this.state.carouselScale }] },
-    ]}
-  >
-    <Image
-      source={require('../../assets/images/carousel-03.jpg')}
-      style={styles.escalationImage}
-      resizeMode="cover"
-    />
-  </Animated.View>
-    </View>
+                  { transform: [{ scale: this.state.carouselScale }] },
+                ]}
+              >
+                <Image
+                  source={require('../../assets/images/carousel-03.jpg')}
+                  style={styles.escalationImage}
+                  resizeMode="cover"
+                />
+              </Animated.View>
+            </View>
 
-  <View style={styles.escalationContent}>
-    <Text style={styles.escalationTitle}>
-      Avoid Escalations and Conflicts
-    </Text>
-    <Text style={styles.escalationText}>
-      By giving customers the option to settle their loans with incentives,
-      we minimize the chances of negative confrontations, complaints, or
-      escalations. This results in smoother relationships between lenders and
-      borrowers.
-    </Text>
+            <View style={styles.escalationContent}>
+              <Text style={styles.escalationTitle}>
+                Avoid Escalations and Conflicts
+              </Text>
+              <Text style={styles.escalationText}>
+                By giving customers the option to settle their loans with incentives,
+                we minimize the chances of negative confrontations, complaints, or
+                escalations. This results in smoother relationships between lenders and
+                borrowers.
+              </Text>
 
-    <Text style={styles.escalationTitle}>
-      Flexible Repayment Options
-    </Text>
-    <Text style={styles.escalationText}>
-      Customers are provided with different repayment solutions depending on
-      their financial situation. Whether they want to pay off pending dues,
-      foreclose a loan, or settle the loan completely, we provide them with
-      the flexibility to choose an option that works best for them.
-    </Text>
-  </View>
-</View>
-{/* HOW REPAYKARO WORKS SECTION */}
-<View style={styles.worksContainer}>
-  <Text style={styles.worksTitle}>
-    How <Text style={styles.purple}>RepayKaro</Text> Works
-  </Text>
-  <Text style={styles.worksSubtitle}>
-    RepayKaro provides a seamless process for both lenders and borrowers. Here's how it works:
-  </Text>
+              <Text style={styles.escalationTitle}>
+                Flexible Repayment Options
+              </Text>
+              <Text style={styles.escalationText}>
+                Customers are provided with different repayment solutions depending on
+                their financial situation. Whether they want to pay off pending dues,
+                foreclose a loan, or settle the loan completely, we provide them with
+                the flexibility to choose an option that works best for them.
+              </Text>
+            </View>
+          </View>
+          {/* HOW REPAYKARO WORKS SECTION */}
+          <View style={styles.worksContainer}>
+            <Text style={styles.worksTitle}>
+              How <Text style={styles.purple}>RepayKaro</Text> Works
+            </Text>
+            <Text style={styles.worksSubtitle}>
+              RepayKaro provides a seamless process for both lenders and borrowers. Here's how it works:
+            </Text>
 
-  <FlatList
-    data={Data.datatype}
-    keyExtractor={(item) => item.id}
-    numColumns={1}  // ✅ SINGLE COLUMN
-    renderItem={this.renderItem}
-  />
-</View>
+            <FlatList
+              data={Data.datatype}
+              keyExtractor={(item) => item.id}
+              numColumns={1}  // ✅ SINGLE COLUMN
+              renderItem={this.renderItem}
+            />
+          </View>
 
 
         </ScrollView>
